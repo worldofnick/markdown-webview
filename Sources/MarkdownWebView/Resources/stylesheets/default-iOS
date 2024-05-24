@@ -817,3 +817,8 @@
         /* purposely ignored */
     }
 }
+
+.katex {
+    overflow-x: scroll;
+    overflow: auto hidden;
+}
