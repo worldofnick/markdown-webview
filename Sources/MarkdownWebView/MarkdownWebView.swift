@@ -10,20 +10,20 @@ import WebKit
 #if !os(visionOS)
     @available(macOS 11.0, iOS 14.0, *)
     public struct MarkdownWebView: PlatformViewRepresentable {
-        @Binding var markdownContent: String
+        var markdownContent: String
         let customStylesheet: String?
         let linkActivationHandler: ((URL) -> Void)?
         let renderedContentHandler: ((String) -> Void)?
 
-        public init(_ markdownContent: Binding<String>, customStylesheet: String? = nil) {
-            _markdownContent = markdownContent
+        public init(_ markdownContent: String, customStylesheet: String? = nil) {
+            self.markdownContent = markdownContent
             self.customStylesheet = customStylesheet
             linkActivationHandler = nil
             renderedContentHandler = nil
         }
 
-        init(_ markdownContent: Binding<String>, customStylesheet: String?, linkActivationHandler: ((URL) -> Void)?, renderedContentHandler: ((String) -> Void)?) {
-            _markdownContent = markdownContent
+        init(_ markdownContent: String, customStylesheet: String?, linkActivationHandler: ((URL) -> Void)?, renderedContentHandler: ((String) -> Void)?) {
+            self.markdownContent = markdownContent
             self.customStylesheet = customStylesheet
             self.linkActivationHandler = linkActivationHandler
             self.renderedContentHandler = renderedContentHandler
@@ -49,11 +49,11 @@ import WebKit
         #endif
 
         public func onLinkActivation(_ linkActivationHandler: @escaping (URL) -> Void) -> Self {
-            .init(_markdownContent, customStylesheet: customStylesheet, linkActivationHandler: linkActivationHandler, renderedContentHandler: renderedContentHandler)
+            .init(markdownContent, customStylesheet: customStylesheet, linkActivationHandler: linkActivationHandler, renderedContentHandler: renderedContentHandler)
         }
 
         public func onRendered(_ renderedContentHandler: @escaping (String) -> Void) -> Self {
-            .init(_markdownContent, customStylesheet: customStylesheet, linkActivationHandler: linkActivationHandler, renderedContentHandler: renderedContentHandler)
+            .init(markdownContent, customStylesheet: customStylesheet, linkActivationHandler: linkActivationHandler, renderedContentHandler: renderedContentHandler)
         }
 
         public class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
