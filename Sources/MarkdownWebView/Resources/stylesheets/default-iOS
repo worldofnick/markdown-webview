@@ -818,7 +818,7 @@
     }
 }
 
-// Allow overscroll for long KaTex diagrams
+/* Allow overscroll for long KaTex diagrams */
 .katex {
     overflow-x: scroll;
     overflow: auto hidden;
