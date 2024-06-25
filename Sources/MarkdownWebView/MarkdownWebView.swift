@@ -59,8 +59,10 @@ import WebKit
         public class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
             let parent: MarkdownWebView
             let platformView: CustomWebView
+            var startTime: CFAbsoluteTime?
 
             init(parent: MarkdownWebView) {
+                startTime = CFAbsoluteTimeGetCurrent()
                 self.parent = parent
                 platformView = .init()
                 super.init()
@@ -152,6 +154,12 @@ import WebKit
                     platformView.contentHeight = contentHeight
                     platformView.invalidateIntrinsicContentSize()
                 case "renderedContentHandler":
+                    if let startTime = startTime {
+                        let endTime = CFAbsoluteTimeGetCurrent()
+                        let renderTime = endTime - startTime
+                        print("Markdown rendering time: \(renderTime) seconds")
+                        self.startTime = nil
+                    }
                     guard let renderedContentHandler = parent.renderedContentHandler,
                           let renderedContentBase64Encoded = message.body as? String,
                           let renderedContentBase64EncodedData: Data = .init(base64Encoded: renderedContentBase64Encoded),
