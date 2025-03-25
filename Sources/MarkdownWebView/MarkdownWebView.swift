@@ -59,15 +59,6 @@ import WebKit
             }
 
             guard
-                let fontAwesomeURL = Bundle.module.url(
-                    forResource: "font-awesome", withExtension: "css"),
-                let fontAwesomeCSS = try? String(contentsOf: fontAwesomeURL)
-            else {
-                print("Failed to load font-awesome.css")
-                return ""
-            }
-
-            guard
                 let githubMarkdownURL = Bundle.module.url(
                     forResource: "github-markdown", withExtension: "css"),
                 let githubMarkdownCSS = try? String(contentsOf: githubMarkdownURL)
@@ -97,7 +88,7 @@ import WebKit
                 .replacingOccurrences(of: "PLACEHOLDER_SCRIPT", with: script)
                 .replacingOccurrences(
                     of: "PLACEHOLDER_STYLESHEET",
-                    with: defaultStylesheet + "\n" + fontAwesomeCSS + "\n" + githubMarkdownCSS
+                    with: defaultStylesheet + "\n" + "\n" + githubMarkdownCSS
                         + "\n" + katexCSS + "\n" + texmathCSS
                 )
                 .replacingOccurrences(of: "CUSTOM_STYLE_PLACEHOLDER", with: "")

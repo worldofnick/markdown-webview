@@ -9,7 +9,6 @@ const jsOutputFile = path.join(outputDir, 'markdown-it-bundle.js');
 
 // CSS files to fetch
 const cssFiles = [
-  { url: 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css', name: 'font-awesome.css' },
   { url: 'https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/4.0.0/github-markdown.min.css', name: 'github-markdown.css' },
   { url: 'https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css', name: 'katex.css' },
   { url: 'https://cdn.jsdelivr.net/npm/markdown-it-texmath@1.0.0/css/texmath.min.css', name: 'texmath.css' }
@@ -29,6 +28,100 @@ const morphdom = require('morphdom');
 const ClipboardJS = require('clipboard');
 const katex = require('katex');
 
+// markdown-it-code-copy implementation
+function markdownitCodeCopy(md, options = {}) {
+  const defaultOptions = {
+    buttonClass: 'copy-code-button',
+    wrapperClass: 'code-block-wrapper',
+    copyIcon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>',
+    copiedIcon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>',
+    copiedDelay: 2000
+  };
+  options = Object.assign({}, defaultOptions, options);
+
+  function escapeHtml(unsafe) {
+    return unsafe
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  function renderCode(origRule) {
+    return (...args) => {
+      const [tokens, idx] = args;
+      const content = tokens[idx].content.replace(/\\n+$/, ''); // Strip trailing newlines
+      const escapedContent = escapeHtml(content); // Escape for HTML attribute
+      const origRendered = origRule(...args);
+
+      if (content.length === 0)
+        return origRendered;
+
+      return \`
+<div class="\${options.wrapperClass}">
+  \${origRendered}
+  <button class="\${options.buttonClass}" data-clipboard-text="\${escapedContent}">\${options.copyIcon}</button>
+</div>
+\`;
+    };
+  }
+
+  md.renderer.rules.code_block = renderCode(md.renderer.rules.code_block);
+  md.renderer.rules.fence = renderCode(md.renderer.rules.fence);
+
+  // Add CSS to prevent selection and customize focus
+  const style = document.createElement('style');
+  style.textContent = \`
+    .\${options.buttonClass} {
+      user-select: none; /* Prevent text selection */
+      -webkit-user-select: none; /* Safari */
+      -moz-user-select: none; /* Firefox */
+      -ms-user-select: none; /* IE/Edge */
+      outline: none; /* Remove default focus outline */
+      background: none; /* Optional: cleaner look */
+      border: none; /* Optional: cleaner look */
+      cursor: pointer; /* Indicate clickability */
+      padding: 4px; /* Optional: better click area */
+    }
+    .\${options.buttonClass}:focus {
+      outline: none; /* Remove focus outline */
+      /* Optional: Add subtle focus indicator for accessibility */
+      /* box-shadow: 0 0 0 2px rgba(0, 0, 255, 0.3); */
+    }
+    .\${options.wrapperClass} {
+      position: relative; /* Optional: for positioning button */
+    }
+  \`;
+  document.head.appendChild(style);
+
+  document.addEventListener('DOMContentLoaded', function () {
+    const clipboard = new ClipboardJS('.' + options.buttonClass);
+    clipboard.on('success', function (e) {
+      const button = e.trigger;
+      button.innerHTML = options.copiedIcon;
+      button.classList.add('copied');
+      setTimeout(() => {
+        button.innerHTML = options.copyIcon;
+        button.classList.remove('copied');
+      }, options.copiedDelay);
+      e.clearSelection(); // Clear any selection made by ClipboardJS
+    });
+
+    // Decode HTML entities when copying
+    clipboard.on('success', function (e) {
+      const decodedText = e.text
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'");
+      e.clearSelection();
+      navigator.clipboard.writeText(decodedText);
+    });
+  });
+}
+
 // Configure markdown-it with plugins
 const md = markdownit({
   linkify: true,
@@ -44,23 +137,25 @@ const md = markdownit({
   })
   .use(markdownitSub)
   .use(markdownitSup)
-  .use(markdownitFootnote);
+  .use(markdownitFootnote)
+  .use(markdownitCodeCopy);
 
 // Expose globals on window
-window.markdownit = function() { return md; }; // Return configured instance
+window.markdownit = function() { return md; };
 window.markdownitMark = markdownitMark;
 window.markdownitTaskLists = markdownitTaskLists;
 window.markdownitTexmath = markdownitTexmath;
 window.markdownitSub = markdownitSub;
 window.markdownitSup = markdownitSup;
 window.markdownitFootnote = markdownitFootnote;
+window.markdownitCodeCopy = markdownitCodeCopy;
 window.morphdom = morphdom;
 window.ClipboardJS = ClipboardJS;
 window.katex = katex;
 `;
 
 async function bundleResources() {
-  // Create output directory if it doesn't exist
+  // Create output directory if it doesn’t exist
   await fs.mkdir(outputDir, { recursive: true });
 
   // Write temporary entry file for JS
@@ -74,7 +169,6 @@ async function bundleResources() {
     minify: true,
     platform: 'browser',
     format: 'iife',
-    // Removed globalName to avoid merging all exports into window
   }).then(() => console.log(`Bundled JS to ${jsOutputFile}`))
     .catch((err) => { console.error('JS Bundle failed:', err); process.exit(1); });
 

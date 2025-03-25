@@ -26,7 +26,6 @@ let package = Package(
                 .copy("Resources/github-markdown.css"),
                 .copy("Resources/katex.css"),
                 .copy("Resources/texmath.css"),
-                .copy("Resources/font-awesome.css"),
             ]
         )
     ]

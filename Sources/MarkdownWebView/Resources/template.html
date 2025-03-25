@@ -88,44 +88,6 @@
 <body>
   <div id="markdown-rendered"></div>
   <script>
-    console.time('Script Execution - Code Copy Setup');
-    (function (window) {
-      const defaultOptions = {
-        buttonClass: 'copy-code-button',
-        wrapperClass: 'code-block-wrapper',
-        copyIcon: '<i class="fa-regular fa-clone"></i>',
-        copiedIcon: '<i class="fa-solid fa-check"></i>',
-        copiedDelay: 2000
-      };
-      function renderCode(origRule, options) {
-        options = Object.assign({}, defaultOptions, options);
-        return (...args) => {
-          const [tokens, idx] = args;
-          const content = tokens[idx].content.replaceAll('"', '"').replaceAll("'", "'");
-          const origRendered = origRule(...args);
-          if (content.length === 0) return origRendered;
-          return `<div class="${options.wrapperClass}">${origRendered}<button class="${options.buttonClass}" data-clipboard-text="${content}">${options.copyIcon}</button></div>`;
-        };
-      }
-      window.markdownitCodeCopy = function (md, options) {
-        md.renderer.rules.code_block = renderCode(md.renderer.rules.code_block, options);
-        md.renderer.rules.fence = renderCode(md.renderer.rules.fence, options);
-      };
-      document.addEventListener('DOMContentLoaded', function () {
-        const clipboard = new window.ClipboardJS('.copy-code-button');
-        clipboard.on('success', function (e) {
-          const button = e.trigger;
-          button.innerHTML = defaultOptions.copiedIcon;
-          button.classList.add('copied');
-          setTimeout(() => {
-            button.innerHTML = defaultOptions.copyIcon;
-            button.classList.remove('copied');
-          }, defaultOptions.copiedDelay);
-        });
-      });
-    })(window);
-    console.timeEnd('Script Execution - Code Copy Setup');
-
     console.time('Script Execution - Markdown Setup');
     const markdownIt = window.markdownit();
     console.timeEnd('Script Execution - Markdown Setup');
@@ -141,12 +103,16 @@
       console.time('DOM Manipulation - Preparation');
       const tempElement = document.createElement('div');
       tempElement.innerHTML = renderedContent;
+
+      // Create a temporary element to hold the new rendered content
       tempElement.querySelectorAll('li > p').forEach(pTag => {
         const li = pTag.parentNode;
         while (pTag.firstChild) li.insertBefore(pTag.firstChild, pTag);
         pTag.remove();
       });
       console.timeEnd('DOM Manipulation - Preparation');
+
+      // Use morphdom to update the content without losing the text selection
       console.time('DOM Manipulation - Morphing');
       window.morphdom(markdownRenderedElement, tempElement, {
         onBeforeElUpdated: (fromEl, toEl) => !fromEl.isEqualNode(toEl),
