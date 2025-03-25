@@ -92,7 +92,7 @@
     const markdownIt = window.markdownit();
     console.timeEnd('Script Execution - Markdown Setup');
 
-    const markdownRenderedElement = document.getElementById(`markdown-rendered`);
+      const markdownRenderedElement = document.getElementById('markdown-rendered');
     window.updateWithMarkdownContentBase64Encoded = (markdownContentBase64Encoded) => {
       console.time('Markdown Processing - Decoding');
       const markdownContent = decodeURIComponent(atob(markdownContentBase64Encoded).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
@@ -104,7 +104,6 @@
       const tempElement = document.createElement('div');
       tempElement.innerHTML = renderedContent;
 
-      // Create a temporary element to hold the new rendered content
       tempElement.querySelectorAll('li > p').forEach(pTag => {
         const li = pTag.parentNode;
         while (pTag.firstChild) li.insertBefore(pTag.firstChild, pTag);
@@ -112,12 +111,15 @@
       });
       console.timeEnd('DOM Manipulation - Preparation');
 
-      // Use morphdom to update the content without losing the text selection
       console.time('DOM Manipulation - Morphing');
       window.morphdom(markdownRenderedElement, tempElement, {
-        onBeforeElUpdated: (fromEl, toEl) => !fromEl.isEqualNode(toEl),
-        childrenOnly: true,
-        skipFromChildren: () => true
+        onBeforeElUpdated: function (fromEl, toEl) {
+          if (fromEl.isEqualNode(toEl)) {
+            return false;
+          }
+          return true;
+        },
+        childrenOnly: true // Keep this to target only children of #markdown-rendered
       });
       console.timeEnd('DOM Manipulation - Morphing');
       window.webkit.messageHandlers.renderedContentHandler.postMessage(markdownContentBase64Encoded);
