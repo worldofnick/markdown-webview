@@ -102,8 +102,6 @@ import WebKit
                 )
                 .replacingOccurrences(of: "CUSTOM_STYLE_PLACEHOLDER", with: "")
 
-            print("\(htmlString)")
-
             return htmlString
         }()
 
