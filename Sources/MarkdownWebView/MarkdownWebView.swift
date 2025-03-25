@@ -15,6 +15,11 @@ import WebKit
         let linkActivationHandler: ((URL) -> Void)?
         let renderedContentHandler: ((String) -> Void)?
         let enableBenchmarking: Bool
+        // A random 5 letter tag for logging
+        let loggingTag = String(
+            (0..<5).map { _ in
+                "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789".randomElement()!
+            })
 
         public init(
             _ markdownContent: String,
@@ -100,7 +105,7 @@ import WebKit
                 if parent.enableBenchmarking {
                     startTime = CFAbsoluteTimeGetCurrent()
                     swiftBenchmarks["Coordinator Init Start"] = startTime!
-                    print("Swift Benchmark - Coordinator Init Start: \(startTime!)s")
+                    print("Swift Benchmark - \(parent.loggingTag) - Coordinator Init Start: \(startTime!)s")
                 }
 
                 platformView.navigationDelegate = self
@@ -149,7 +154,7 @@ import WebKit
                         forResource: defaultStylesheetFileName, withExtension: ""),
                     let defaultStylesheet = try? String(contentsOf: defaultStylesheetFileURL)
                 else {
-                    print("Failed to load resources.")
+                    print("Failed to load resources for \(parent.loggingTag)")
                     return
                 }
 
@@ -166,7 +171,7 @@ import WebKit
                 if parent.enableBenchmarking {
                     swiftBenchmarks["Before HTML Load"] = CFAbsoluteTimeGetCurrent()
                     print(
-                        "Swift Benchmark - Before HTML Load: \(swiftBenchmarks["Before HTML Load"]! - swiftBenchmarks["Coordinator Init Start"]!)s"
+                        "Swift Benchmark - \(parent.loggingTag) - Before HTML Load: \(swiftBenchmarks["Before HTML Load"]! - swiftBenchmarks["Coordinator Init Start"]!)s"
                     )
                 }
 
@@ -175,7 +180,7 @@ import WebKit
                 if parent.enableBenchmarking {
                     swiftBenchmarks["After HTML Load"] = CFAbsoluteTimeGetCurrent()
                     print(
-                        "Swift Benchmark - HTML Load Duration: \(swiftBenchmarks["After HTML Load"]! - swiftBenchmarks["Before HTML Load"]!)s"
+                        "Swift Benchmark - \(parent.loggingTag) - HTML Load Duration: \(swiftBenchmarks["After HTML Load"]! - swiftBenchmarks["Before HTML Load"]!)s"
                     )
                 }
             }
@@ -184,7 +189,7 @@ import WebKit
                 if parent.enableBenchmarking {
                     swiftBenchmarks["WebView Did Finish"] = CFAbsoluteTimeGetCurrent()
                     print(
-                        "Swift Benchmark - WebView Load Duration: \(swiftBenchmarks["WebView Did Finish"]! - swiftBenchmarks["After HTML Load"]!)s"
+                        "Swift Benchmark - \(parent.loggingTag) - WebView Load Duration: \(swiftBenchmarks["WebView Did Finish"]! - swiftBenchmarks["After HTML Load"]!)s"
                     )
                 }
                 (webView as! CustomWebView).updateMarkdownContent(parent.markdownContent)
@@ -228,7 +233,7 @@ import WebKit
                     if parent.enableBenchmarking, let startTime = startTime {
                         let endTime = CFAbsoluteTimeGetCurrent()
                         let renderTime = endTime - startTime
-                        print("Swift Benchmark - Total Markdown Rendering Time: \(renderTime)s")
+                        print("Swift Benchmark - \(parent.loggingTag) - Total Markdown Rendering Time: \(renderTime)s")
                         self.startTime = nil
                     }
                     guard let renderedContentHandler = parent.renderedContentHandler,
@@ -254,15 +259,15 @@ import WebKit
                         switch type {
                         case "time":
                             timerStartTimes[label] = timestamp
-                            print("JS Benchmark - \(label) Started: \(timestamp)ms")
+                            print("JS Benchmark - \(parent.loggingTag) - \(label) Started: \(timestamp)ms")
                         case "timeEnd":
                             if let startTime = timerStartTimes[label] {
                                 let duration = timestamp - startTime
-                                print("JS Benchmark - \(label) Completed: \(duration)ms")
+                                print("JS Benchmark - \(parent.loggingTag) - \(label) Completed: \(duration)ms")
                                 timerStartTimes.removeValue(forKey: label)
                             } else {
                                 print(
-                                    "JS Benchmark - \(label) Ended: \(timestamp)ms (no start time)")
+                                    "JS Benchmark - \(parent.loggingTag) - \(label) Ended: \(timestamp)ms (no start time)")
                             }
                         default:
                             break
