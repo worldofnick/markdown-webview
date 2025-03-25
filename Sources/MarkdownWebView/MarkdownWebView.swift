@@ -110,7 +110,7 @@ import WebKit
         public init(
             _ markdownContent: String,
             customStylesheet: String? = nil,
-            enableBenchmarking: Bool = true
+            enableBenchmarking: Bool = false
         ) {
             self.markdownContent = markdownContent
             self.customStylesheet = customStylesheet
