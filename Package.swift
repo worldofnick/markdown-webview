@@ -12,15 +12,22 @@ let package = Package(
         .library(
             name: "MarkdownWebView",
             targets: ["MarkdownWebView"]
-        ),
+        )
     ],
     targets: [
         .target(
             name: "MarkdownWebView",
-            resources: [.copy("Resources/template"),
-                        .copy("Resources/script"),
-                        .copy("Resources/stylesheets/default-macOS"),
-                        .copy("Resources/stylesheets/default-iOS")]
-        ),
+            resources: [
+                .copy("Resources/template.html"),
+                .copy("Resources/script.js"),
+                .copy("Resources/markdown-it-bundle.js"),
+                .copy("Resources/default-macOS.css"),
+                .copy("Resources/default-iOS.css"),
+                .copy("Resources/github-markdown.css"),
+                .copy("Resources/katex.css"),
+                .copy("Resources/texmath.css"),
+                .copy("Resources/font-awesome.css"),
+            ]
+        )
     ]
 )

@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <script>
+    (function () {
+      const originalConsoleTime = console.time;
+      const originalConsoleTimeEnd = console.timeEnd;
+      console.time = function (label) {
+        originalConsoleTime.call(console, label);
+        if (window.webkit?.messageHandlers?.consoleLogHandler) {
+          window.webkit.messageHandlers.consoleLogHandler.postMessage({
+            type: 'time',
+            label: label,
+            timestamp: performance.now()
+          });
+        }
+      };
+      console.timeEnd = function (label) {
+        originalConsoleTimeEnd.call(console, label);
+        if (window.webkit?.messageHandlers?.consoleLogHandler) {
+          window.webkit.messageHandlers.consoleLogHandler.postMessage({
+            type: 'timeEnd',
+            label: label,
+            timestamp: performance.now()
+          });
+        }
+      };
+    })();
+    console.time('Script Loading - Placeholder');
+  </script>
+  <script>PLACEHOLDER_SCRIPT</script>
+  <script>console.timeEnd('Script Loading - Placeholder');</script>
+  <style>
+    PLACEHOLDER_STYLESHEET
+  </style>
+  <style>
+    :root {
+      color-scheme: light dark !important;
+    }
+
+    html,
+    body {
+      overscroll-behavior: none !important;
+      margin: 0 !important;
+    }
+
+    body::-webkit-scrollbar {
+      display: none !important;
+    }
+
+    #markdown-rendered>*:first-child {
+      margin-top: 0 !important;
+    }
+
+    #markdown-rendered>*:last-child {
+      margin-bottom: 0 !important;
+    }
+
+    .code-block-wrapper {
+      position: relative;
+    }
+
+    .copy-code-button {
+      background-color: #f0f0f0;
+      border: none;
+      border-radius: 4px;
+      font-size: 14px;
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity 0.2s ease-in-out;
+    }
+
+    .code-block-wrapper:hover .copy-code-button {
+      opacity: 1;
+    }
+
+    .copy-code-button.copied {
+      background-color: #4caf50;
+      opacity: 0;
+      transition: opacity 0.2s ease-in-out;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="markdown-rendered"></div>
+  <script>
+    console.time('Script Execution - Code Copy Setup');
+    (function (window) {
+      const defaultOptions = {
+        buttonClass: 'copy-code-button',
+        wrapperClass: 'code-block-wrapper',
+        copyIcon: '<i class="fa-regular fa-clone"></i>',
+        copiedIcon: '<i class="fa-solid fa-check"></i>',
+        copiedDelay: 2000
+      };
+      function renderCode(origRule, options) {
+        options = Object.assign({}, defaultOptions, options);
+        return (...args) => {
+          const [tokens, idx] = args;
+          const content = tokens[idx].content.replaceAll('"', '"').replaceAll("'", "'");
+          const origRendered = origRule(...args);
+          if (content.length === 0) return origRendered;
+          return `<div class="${options.wrapperClass}">${origRendered}<button class="${options.buttonClass}" data-clipboard-text="${content}">${options.copyIcon}</button></div>`;
+        };
+      }
+      window.markdownitCodeCopy = function (md, options) {
+        md.renderer.rules.code_block = renderCode(md.renderer.rules.code_block, options);
+        md.renderer.rules.fence = renderCode(md.renderer.rules.fence, options);
+      };
+      document.addEventListener('DOMContentLoaded', function () {
+        const clipboard = new window.ClipboardJS('.copy-code-button');
+        clipboard.on('success', function (e) {
+          const button = e.trigger;
+          button.innerHTML = defaultOptions.copiedIcon;
+          button.classList.add('copied');
+          setTimeout(() => {
+            button.innerHTML = defaultOptions.copyIcon;
+            button.classList.remove('copied');
+          }, defaultOptions.copiedDelay);
+        });
+      });
+    })(window);
+    console.timeEnd('Script Execution - Code Copy Setup');
+
+    console.time('Script Execution - Markdown Setup');
+    const markdownIt = window.markdownit();
+    console.timeEnd('Script Execution - Markdown Setup');
+
+    const markdownRenderedElement = document.getElementById(`markdown-rendered`);
+    window.updateWithMarkdownContentBase64Encoded = (markdownContentBase64Encoded) => {
+      console.time('Markdown Processing - Decoding');
+      const markdownContent = decodeURIComponent(atob(markdownContentBase64Encoded).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
+      console.timeEnd('Markdown Processing - Decoding');
+      console.time('Markdown Processing - Rendering');
+      const renderedContent = markdownIt.render(markdownContent);
+      console.timeEnd('Markdown Processing - Rendering');
+      console.time('DOM Manipulation - Preparation');
+      const tempElement = document.createElement('div');
+      tempElement.innerHTML = renderedContent;
+      tempElement.querySelectorAll('li > p').forEach(pTag => {
+        const li = pTag.parentNode;
+        while (pTag.firstChild) li.insertBefore(pTag.firstChild, pTag);
+        pTag.remove();
+      });
+      console.timeEnd('DOM Manipulation - Preparation');
+      console.time('DOM Manipulation - Morphing');
+      window.morphdom(markdownRenderedElement, tempElement, {
+        onBeforeElUpdated: (fromEl, toEl) => !fromEl.isEqualNode(toEl),
+        childrenOnly: true,
+        skipFromChildren: () => true
+      });
+      console.timeEnd('DOM Manipulation - Morphing');
+      window.webkit.messageHandlers.renderedContentHandler.postMessage(markdownContentBase64Encoded);
+    };
+
+    console.time('Script Execution - Resize Observer');
+    const resizeObserver = new ResizeObserver(entries => {
+      window.webkit.messageHandlers.sizeChangeHandler.postMessage(entries[0].borderBoxSize[0].blockSize);
+    });
+    resizeObserver.observe(markdownRenderedElement);
+    console.timeEnd('Script Execution - Resize Observer');
+  </script>
+</body>
+
+</html>

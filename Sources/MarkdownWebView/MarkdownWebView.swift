@@ -15,11 +15,97 @@ import WebKit
         let linkActivationHandler: ((URL) -> Void)?
         let renderedContentHandler: ((String) -> Void)?
         let enableBenchmarking: Bool
-        // A random 5 letter tag for logging
         let loggingTag = String(
             (0..<5).map { _ in
                 "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789".randomElement()!
             })
+
+        // Shared process pool
+        static let sharedProcessPool: WKProcessPool = WKProcessPool()
+
+        // Precompiled HTML with all resources inlined
+        static let precompiledHTML: String = {
+            #if os(macOS)
+                let defaultStylesheetFileName = "default-macOS"
+            #elseif os(iOS)
+                let defaultStylesheetFileName = "default-iOS"
+            #endif
+
+            guard
+                let templateFileURL = Bundle.module.url(
+                    forResource: "template", withExtension: "html"),
+                let templateString = try? String(contentsOf: templateFileURL)
+            else {
+                print("Failed to load template.html")
+                return ""
+            }
+
+            guard
+                let scriptFileURL = Bundle.module.url(
+                    forResource: "markdown-it-bundle", withExtension: "js"),
+                let script = try? String(contentsOf: scriptFileURL)
+            else {
+                print("Failed to load markdown-it-bundle.js")
+                return ""
+            }
+
+            guard
+                let defaultStylesheetFileURL = Bundle.module.url(
+                    forResource: defaultStylesheetFileName, withExtension: "css"),
+                let defaultStylesheet = try? String(contentsOf: defaultStylesheetFileURL)
+            else {
+                print("Failed to load \(defaultStylesheetFileName).css")
+                return ""
+            }
+
+            guard
+                let fontAwesomeURL = Bundle.module.url(
+                    forResource: "font-awesome", withExtension: "css"),
+                let fontAwesomeCSS = try? String(contentsOf: fontAwesomeURL)
+            else {
+                print("Failed to load font-awesome.css")
+                return ""
+            }
+
+            guard
+                let githubMarkdownURL = Bundle.module.url(
+                    forResource: "github-markdown", withExtension: "css"),
+                let githubMarkdownCSS = try? String(contentsOf: githubMarkdownURL)
+            else {
+                print("Failed to load github-markdown.css")
+                return ""
+            }
+
+            guard
+                let katexURL = Bundle.module.url(forResource: "katex", withExtension: "css"),
+                let katexCSS = try? String(contentsOf: katexURL)
+            else {
+                print("Failed to load katex.css")
+                return ""
+            }
+
+            guard
+                let texmathURL = Bundle.module.url(forResource: "texmath", withExtension: "css"),
+                let texmathCSS = try? String(contentsOf: texmathURL)
+            else {
+                print("Failed to load texmath.css")
+                return ""
+            }
+
+            let htmlString =
+                templateString
+                .replacingOccurrences(of: "PLACEHOLDER_SCRIPT", with: script)
+                .replacingOccurrences(
+                    of: "PLACEHOLDER_STYLESHEET",
+                    with: defaultStylesheet + "\n" + fontAwesomeCSS + "\n" + githubMarkdownCSS
+                        + "\n" + katexCSS + "\n" + texmathCSS
+                )
+                .replacingOccurrences(of: "CUSTOM_STYLE_PLACEHOLDER", with: "")
+
+            print("\(htmlString)")
+
+            return htmlString
+        }()
 
         public init(
             _ markdownContent: String,
@@ -99,13 +185,20 @@ import WebKit
 
             init(parent: MarkdownWebView) {
                 self.parent = parent
-                platformView = .init()
+                let config = WKWebViewConfiguration()
+                config.suppressesIncrementalRendering = true
+                config.processPool = MarkdownWebView.sharedProcessPool
+                let userContentController = WKUserContentController()
+                config.userContentController = userContentController
+                platformView = CustomWebView(frame: .zero, configuration: config)
                 super.init()
 
                 if parent.enableBenchmarking {
                     startTime = CFAbsoluteTimeGetCurrent()
                     swiftBenchmarks["Coordinator Init Start"] = startTime!
-                    print("Swift Benchmark - \(parent.loggingTag) - Coordinator Init Start: \(startTime!)s")
+                    print(
+                        "Swift Benchmark - \(parent.loggingTag) - Coordinator Init Start: \(startTime!)s"
+                    )
                 }
 
                 platformView.navigationDelegate = self
@@ -128,45 +221,17 @@ import WebKit
                     platformView.isOpaque = false
                 #endif
 
-                platformView.configuration.userContentController = .init()
-                platformView.configuration.userContentController.add(
-                    self, name: "sizeChangeHandler")
-                platformView.configuration.userContentController.add(
-                    self, name: "renderedContentHandler")
-                platformView.configuration.userContentController.add(self, name: "copyToPasteboard")
+                userContentController.add(self, name: "sizeChangeHandler")
+                userContentController.add(self, name: "renderedContentHandler")
+                userContentController.add(self, name: "copyToPasteboard")
                 if parent.enableBenchmarking {
-                    platformView.configuration.userContentController.add(
-                        self, name: "consoleLogHandler")
+                    userContentController.add(self, name: "consoleLogHandler")
                 }
 
-                #if os(macOS)
-                    let defaultStylesheetFileName = "default-macOS"
-                #elseif os(iOS)
-                    let defaultStylesheetFileName = "default-iOS"
-                #endif
-                guard
-                    let templateFileURL = Bundle.module.url(
-                        forResource: "template", withExtension: ""),
-                    let templateString = try? String(contentsOf: templateFileURL),
-                    let scriptFileURL = Bundle.module.url(forResource: "script", withExtension: ""),
-                    let script = try? String(contentsOf: scriptFileURL),
-                    let defaultStylesheetFileURL = Bundle.module.url(
-                        forResource: defaultStylesheetFileName, withExtension: ""),
-                    let defaultStylesheet = try? String(contentsOf: defaultStylesheetFileURL)
-                else {
-                    print("Failed to load resources for \(parent.loggingTag)")
-                    return
-                }
-
-                let stylesheet: String? = self.parent.customStylesheet.map { str in
-                    defaultStylesheet + str
-                }
-
-                let htmlString =
-                    templateString
-                    .replacingOccurrences(of: "PLACEHOLDER_SCRIPT", with: script)
-                    .replacingOccurrences(
-                        of: "PLACEHOLDER_STYLESHEET", with: stylesheet ?? defaultStylesheet)
+                let htmlString = MarkdownWebView.precompiledHTML.replacingOccurrences(
+                    of: "CUSTOM_STYLE_PLACEHOLDER",
+                    with: parent.customStylesheet ?? ""
+                )
 
                 if parent.enableBenchmarking {
                     swiftBenchmarks["Before HTML Load"] = CFAbsoluteTimeGetCurrent()
@@ -233,7 +298,9 @@ import WebKit
                     if parent.enableBenchmarking, let startTime = startTime {
                         let endTime = CFAbsoluteTimeGetCurrent()
                         let renderTime = endTime - startTime
-                        print("Swift Benchmark - \(parent.loggingTag) - Total Markdown Rendering Time: \(renderTime)s")
+                        print(
+                            "Swift Benchmark - \(parent.loggingTag) - Total Markdown Rendering Time: \(renderTime)s"
+                        )
                         self.startTime = nil
                     }
                     guard let renderedContentHandler = parent.renderedContentHandler,
@@ -259,15 +326,17 @@ import WebKit
                         switch type {
                         case "time":
                             timerStartTimes[label] = timestamp
-                            print("JS Benchmark - \(parent.loggingTag) - \(label) Started: \(timestamp)ms")
                         case "timeEnd":
                             if let startTime = timerStartTimes[label] {
                                 let duration = timestamp - startTime
-                                print("JS Benchmark - \(parent.loggingTag) - \(label) Completed: \(duration)ms")
+                                print(
+                                    "JS Benchmark - \(parent.loggingTag) - \(label) Completed: \(duration)ms"
+                                )
                                 timerStartTimes.removeValue(forKey: label)
                             } else {
                                 print(
-                                    "JS Benchmark - \(parent.loggingTag) - \(label) Ended: \(timestamp)ms (no start time)")
+                                    "JS Benchmark - \(parent.loggingTag) - \(label) Ended: \(timestamp)ms (no start time)"
+                                )
                             }
                         default:
                             break
