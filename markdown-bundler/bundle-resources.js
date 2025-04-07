@@ -11,7 +11,9 @@ const jsOutputFile = path.join(outputDir, 'markdown-it-bundle.js');
 const cssFiles = [
   { url: 'https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/4.0.0/github-markdown.min.css', name: 'github-markdown.css' },
   { url: 'https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css', name: 'katex.css' },
-  { url: 'https://cdn.jsdelivr.net/npm/markdown-it-texmath@1.0.0/css/texmath.min.css', name: 'texmath.css' }
+  { url: 'https://cdn.jsdelivr.net/npm/markdown-it-texmath@1.0.0/css/texmath.min.css', name: 'texmath.css' },
+  { url: 'https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/github.min.css', name: 'highlight.css' },
+  { url: 'https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/github-dark.min.css', name: 'highlight-dark.css' }
 ];
 
 // Temporary entry file for JS bundling
@@ -27,6 +29,7 @@ const markdownitFootnote = require('markdown-it-footnote');
 const morphdom = require('morphdom');
 const ClipboardJS = require('clipboard');
 const katex = require('katex');
+const hljs = require('highlight.js');
 
 // markdown-it-code-copy implementation
 function markdownitCodeCopy(md, options = {}) {
@@ -127,6 +130,22 @@ const md = markdownit({
   linkify: true,
   typographer: true
 })
+  .set({
+      highlight: function (str, lang) {
+          if (lang && hljs.getLanguage(lang)) {
+              try {
+                  return hljs.highlight(str, { language: lang }).value;
+              } catch (__) {}
+          } else {
+              try {
+                  return hljs.highlightAuto(str).value;
+              } catch (__) {}
+          }
+          return '';
+      },
+      linkify: true,
+      typographer: true
+  })
   .use(markdownitMark)
   .use(markdownitTaskLists, { enabled: true, label: true, labelAfter: true })
   .use(markdownitTexmath, {
@@ -140,6 +159,18 @@ const md = markdownit({
   .use(markdownitFootnote)
   .use(markdownitCodeCopy);
 
+// Initialize Highlight.js for syntax highlighting
+md.set({
+  highlight: function (str, lang) {
+    if (lang && hljs.getLanguage(lang)) {
+      try {
+        return hljs.highlight(str, { language: lang }).value;
+      } catch (__) {}
+    }
+    return ''; // use external default escaping
+  }
+});
+
 // Expose globals on window
 window.markdownit = function() { return md; };
 window.markdownitMark = markdownitMark;
@@ -152,10 +183,11 @@ window.markdownitCodeCopy = markdownitCodeCopy;
 window.morphdom = morphdom;
 window.ClipboardJS = ClipboardJS;
 window.katex = katex;
+window.hljs = hljs;
 `;
 
 async function bundleResources() {
-  // Create output directory if it doesn’t exist
+  // Create output directory if it doesn't exist
   await fs.mkdir(outputDir, { recursive: true });
 
   // Write temporary entry file for JS
