@@ -822,4 +822,5 @@
 .katex {
     overflow-x: scroll;
     overflow: auto hidden;
+    font-size: 1.4em;
 }
