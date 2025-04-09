@@ -822,6 +822,7 @@
 .katex {
     overflow-x: scroll;
     overflow: auto hidden;
+    text-align: center;
 }
 
 .katex .katex-html {
