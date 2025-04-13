@@ -771,7 +771,7 @@
 @media (max-width: 768px) {
     #markdown-rendered {
         font-size: 16pt; /* Larger base text for improved readability */
-        line-height: 1.6; /* Tighter line spacing */
+        line-height: 1.8; /* Increased line spacing */
         padding: 0 1em;
     }
     /* Reduced heading sizes for mobile */
